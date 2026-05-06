@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Environment / secrets
+.env
+.env.local
+*.env
+
+# Minecraft server files (don't commit the actual server)
+minecraft/
+*.jar
+server.properties
+eula.txt
+world/
+logs/
+backups/
+crash-reports/
+config/
+plugins/
+mods/
+ops.json
+whitelist.json
+banned-*.json
+usercache.json
+server.properties.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+.idea/
+*.swp
