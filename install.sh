@@ -2,9 +2,9 @@
 set -euo pipefail
 
 # ── Voxel Control — installer ─────────────────────────────────────────────────
-# curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/pplx-mc-panel/main/install.sh | bash
+# curl -fsSL https://raw.githubusercontent.com/MythicSorcerer/pplx-mc-panel/main/install.sh | bash
 
-REPO="https://github.com/YOUR_USERNAME/pplx-mc-panel.git"
+REPO="https://github.com/MythicSorcerer/pplx-mc-panel.git"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.voxel-control}"
 SERVICE_NAME="voxel-control"
 PORT="${PORT:-3000}"
