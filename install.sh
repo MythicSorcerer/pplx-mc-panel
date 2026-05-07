@@ -66,6 +66,31 @@ else
   git clone "$REPO" "$INSTALL_DIR"
 fi
 
+
+# ── Credentials ───────────────────────────────────────────────────────────────
+if [[ -f "$INSTALL_DIR/backend/.env" ]]; then
+  info "Using existing credentials from $INSTALL_DIR/backend/.env"
+  source <(grep -E "^(ADMIN_EMAIL|ADMIN_PASSWORD|SESSION_SECRET)=" "$INSTALL_DIR/backend/.env")
+else
+  echo ""
+  warn "Set your login credentials (stored locally, never committed)"
+  read -rp "  Admin email   [admin@voxel.local]: " ADMIN_EMAIL
+  ADMIN_EMAIL="${ADMIN_EMAIL:-admin@voxel.local}"
+  read -rsp "  Admin password: " ADMIN_PASSWORD; echo
+  while [[ ${#ADMIN_PASSWORD} -lt 8 ]]; do
+    warn "Password must be at least 8 characters"
+    read -rsp "  Admin password: " ADMIN_PASSWORD; echo
+  done
+  SESSION_SECRET=$(openssl rand -base64 32)
+  cat > "$INSTALL_DIR/backend/.env" << ENVEOF
+ADMIN_EMAIL=$ADMIN_EMAIL
+ADMIN_PASSWORD=$ADMIN_PASSWORD
+SESSION_SECRET=$SESSION_SECRET
+ENVEOF
+  chmod 600 "$INSTALL_DIR/backend/.env"
+  success "Credentials saved to $INSTALL_DIR/backend/.env"
+fi
+
 # ── Build ─────────────────────────────────────────────────────────────────────
 info "Installing backend dependencies..."
 cd "$INSTALL_DIR/backend" && npm install --production=false
@@ -166,6 +191,9 @@ Restart=on-failure
 RestartSec=5
 Environment=NODE_ENV=production
 Environment=PORT=$PORT
+Environment=ADMIN_EMAIL=${ADMIN_EMAIL:-admin@voxel.local}
+Environment="ADMIN_PASSWORD=$ADMIN_PASSWORD"
+Environment="SESSION_SECRET=$SESSION_SECRET"
 
 [Install]
 WantedBy=multi-user.target

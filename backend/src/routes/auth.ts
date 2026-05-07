@@ -1,10 +1,15 @@
 import { Router, Request, Response } from "express";
-import "dotenv/config";
 
 const router = Router();
 
+// Loaded via node --env-file flag in systemd unit
 const ADMIN_EMAIL    = process.env.ADMIN_EMAIL    ?? "admin@voxel.local";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? (() => { throw new Error("ADMIN_PASSWORD env var not set!"); })();
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
+if (!ADMIN_PASSWORD) {
+  console.error("FATAL: ADMIN_PASSWORD not set in backend/.env");
+  process.exit(1);
+}
 
 declare module "express-session" {
   interface SessionData { userId: string; }
