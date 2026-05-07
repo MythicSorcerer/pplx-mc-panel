@@ -3,6 +3,8 @@ import session from "express-session";
 import cors from "cors";
 import http from "http";
 import path from "path";
+import os from "os";
+import { execSync } from "child_process";
 import fs from "fs";
 import { WebSocketServer, WebSocket } from "ws";
 
@@ -11,6 +13,7 @@ import playersRouter  from "./routes/players";
 import configRouter   from "./routes/config";
 import filesRouter from "./routes/files";
 import softwareRouter from "./routes/software";
+import metricsRouter from "./routes/metrics";
 import { start, stop, restart, sendCommand, status, getBuffer, events } from "./server-process";
 
 const app    = express();
@@ -20,11 +23,12 @@ const IS_DEV = process.env.NODE_ENV !== "production";
 
 app.use(cors({ origin: IS_DEV ? "http://localhost:5173" : false, credentials: true }));
 app.use(express.json());
+app.set("trust proxy", 1);
 app.use(session({
   secret: process.env.SESSION_SECRET ?? "voxel-secret-change-me",
   resave: false,
   saveUninitialized: false,
-  cookie: { httpOnly: true, sameSite: "none", secure: false, path: "/", maxAge: 7 * 24 * 60 * 60 * 1000 },
+  proxy: true, cookie: { httpOnly: true, sameSite: "none", secure: true, path: "/", maxAge: 7 * 24 * 60 * 60 * 1000 },
 }));
 
 function requireAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
@@ -37,6 +41,7 @@ app.use("/api/players",  requireAuth, playersRouter);
 app.use("/api/config",   requireAuth, configRouter);
 app.use("/api/files",   requireAuth, filesRouter);
 app.use("/api/software", requireAuth, softwareRouter);
+app.use("/api/metrics", requireAuth, metricsRouter);
 app.get("/api/health",   (_req, res) => res.json({ ok: true, uptime: process.uptime(), status }));
 
 app.post("/api/server/start",   requireAuth, (_req, res) => { start();   res.json({ ok: true }); });

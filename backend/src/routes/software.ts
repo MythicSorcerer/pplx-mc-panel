@@ -135,14 +135,19 @@ router.post("/install", async (req: Request, res: Response) => {
 
 router.get("/current", async (_req: Request, res: Response) => {
   try {
-    // Read server.jar manifest to detect type/version
-    const { stdout } = await execAsync(
-      `java -jar ${JAR_PATH} --version 2>&1 || true`,
-      { cwd: MC_DIR, timeout: 5000 }
-    ).catch(() => ({ stdout: "" }));
-    return res.json({ ok: true, info: stdout.trim() || "Unknown" });
+    const manifestPath = path.join(MC_DIR, "manifest.json");
+    const manifestExists = await fs.access(manifestPath).then(() => true).catch(() => false);
+    if (manifestExists) {
+      const manifest = JSON.parse(await fs.readFile(manifestPath, "utf-8"));
+      return res.json({ ok: true, type: manifest.type, version: manifest.version });
+    }
+    const jarExists = await fs.access(JAR_PATH).then(() => true).catch(() => false);
+    if (jarExists) {
+      return res.json({ ok: true, type: "unknown", version: "installed" });
+    }
+    return res.json({ ok: true, type: "none", version: "" });
   } catch {
-    return res.json({ ok: true, info: "No server installed" });
+    return res.json({ ok: true, type: "none", version: "" });
   }
 });
 

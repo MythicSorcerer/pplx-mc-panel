@@ -3,12 +3,12 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ServerProvider } from "./context/ServerContext";
 import { Sidebar } from "./components/Sidebar";
 import { LoginView } from "./views/LoginView";
-import { OverviewView } from "./views/OverviewView";
+import OverviewView from "./views/OverviewView";
 import { ConsoleView } from "./views/ConsoleView";
 import { FilesView } from "./views/FilesView";
-import { SoftwareView } from "./views/SoftwareView";
+import SoftwareView from "./views/SoftwareView";
 import { ConfigView } from "./views/ConfigView";
-import { PlayersView } from "./views/PlayersView";
+import PlayersView from "./views/PlayersView";
 import { SettingsView } from "./views/SettingsView";
 
 function Shell() {

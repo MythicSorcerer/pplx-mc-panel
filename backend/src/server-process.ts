@@ -6,14 +6,14 @@ import fs from "fs";
 // Where the Minecraft server jar lives — set MC_DIR env var or edit this path
 const MC_DIR = process.env.MC_DIR ?? path.join(process.env.HOME ?? "", "minecraft");
 const JAR    = process.env.MC_JAR ?? "server.jar";
-const JAVA   = process.env.JAVA_BIN ?? "java";
-// -Dterminal.ansi=true enables ANSI colour output in the Minecraft log stream
-const JVM_ARGS = (process.env.JVM_ARGS ?? "-Xmx2G -Xms1G -Dterminal.ansi=true").split(" ");
+const JAVA   = process.env.JAVA_BIN ?? "/usr/lib/jvm/java-21-openjdk/bin/java";
+const JVM_ARGS = (process.env.JVM_ARGS ?? "-Xmx2G -Xms1G").split(" ");
 
 export type ServerStatus = "stopped" | "starting" | "running" | "stopping";
 
 export const events   = new EventEmitter();
 export let   status:    ServerStatus = "stopped";
+export let   startTime: number | null = null;
 let          proc:      ChildProcessWithoutNullStreams | null = null;
 const        logBuffer: string[] = [];   // last 200 lines for new WS clients
 
@@ -55,7 +55,7 @@ export function start() {
   proc.stdout.on("data", (data: string) => {
     data.split("\n").filter(Boolean).forEach(line => {
       emit(line);
-      if (line.includes("Done (") && line.includes("For help")) setStatus("running");
+      if (line.includes("Done (") && line.includes("For help")) setStatus("running"); startTime = Date.now();
     });
   });
 
@@ -65,13 +65,13 @@ export function start() {
 
   proc.on("exit", (code) => {
     emit(`[panel] Process exited (code ${code})`);
-    setStatus("stopped");
+    setStatus("stopped"); startTime = null;
     proc = null;
   });
 
   proc.on("error", (err) => {
     emit(`[panel] Spawn error: ${err.message}`);
-    setStatus("stopped");
+    setStatus("stopped"); startTime = null;
     proc = null;
   });
 }
@@ -81,7 +81,7 @@ export function stop() {
   setStatus("stopping");
   sendCommand("stop");
   // Force kill after 30s if it hasn't exited
-  setTimeout(() => { if (proc) { proc.kill(); proc = null; setStatus("stopped"); } }, 30000);
+  setTimeout(() => { if (proc) { proc.kill(); proc = null; setStatus("stopped"); startTime = null; } }, 30000);
 }
 
 export function restart() {

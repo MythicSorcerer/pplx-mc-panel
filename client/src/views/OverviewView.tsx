@@ -1,86 +1,73 @@
-import { useState, useEffect } from "react";
-import { StatCard } from "../components/StatCard";
-import { PageHeader } from "../components/PageHeader";
 import { useServer } from "../context/ServerContext";
 
-const TIMELINE = [
-  { color:"bg-mint",     title:"Backup completed",      desc:"Nightly snapshot \u2192 backups/2026-05-06.zip",  ago:"2m"  },
-  { color:"bg-amber",    title:"Plugin update pending",  desc:"ViaVersion can be upgraded after restart.",  ago:"26m" },
-  { color:"bg-redstone", title:"Player report filed",    desc:"Griefing report added to moderation queue.", ago:"58m" },
-];
-const ACTIONS = ["Create backup","Open live console","Edit server.properties","Install Paper build"];
-
-function fmtUptime(seconds: number): string {
-  if (!isFinite(seconds) || seconds < 0) return "--";
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m ${s}s`;
-  return `${s}s`;
+function StatCard({ label, value, sub, pct, accent = "emerald" }: {
+  label: string; value: string; sub?: string; pct?: number; accent?: string;
+}) {
+  const color = accent === "amber" ? "bg-amber-400" : "bg-emerald";
+  return (
+    <div className="panel-line rounded-[28px] p-5 flex flex-col gap-2">
+      <p className="text-[10px] uppercase tracking-[0.3em] text-moss">{label}</p>
+      <p className="text-2xl font-bold">{value}</p>
+      {sub && <p className="text-xs text-white/40">{sub}</p>}
+      {pct !== undefined && (
+        <div className="h-1 rounded-full bg-white/10 mt-1">
+          <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.min(pct,100)}%` }} />
+        </div>
+      )}
+    </div>
+  );
 }
 
-export function OverviewView() {
-  const { status, togglePower } = useServer();
-  const [uptime, setUptime] = useState<number|null>(null);
+export default function OverviewView() {
+  const { status, togglePower, metrics, software } = useServer();
+  const isOnline = status === "online";
 
-  useEffect(() => {
-    async function fetchHealth() {
-      try {
-        const r = await fetch("/api/health", { credentials: "include" });
-        const j = await r.json();
-        if (j.ok && typeof j.uptime === "number") setUptime(j.uptime);
-      } catch { /* ignore network errors */ }
-    }
-    fetchHealth();
-    const id = setInterval(fetchHealth, 10_000);
-    return () => clearInterval(id);
-  }, []);
+  const fmtUptime = (secs: number) => {
+    if (secs < 60) return `${secs}s`;
+    if (secs < 3600) return `${Math.floor(secs/60)}m`;
+    return `${Math.floor(secs/3600)}h ${Math.floor((secs%3600)/60)}m`;
+  };
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
-      <PageHeader title="Overview">
-        <div className="rounded-full panel-line px-4 py-2 text-sm font-mono text-mint">survival-01</div>
-        <button onClick={togglePower}
-          className={`rounded-full px-5 py-2.5 font-bold transition-colors ${status==="online" ? "bg-emerald text-coal" : "bg-redstone text-white"}`}>
-          {status==="online" ? "Running" : "Stopped"}
+    <div className="p-8 max-w-4xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.3em] text-moss">Minecraft panel</p>
+          <h1 className="text-3xl font-bold mt-1">Overview</h1>
+        </div>
+        <button
+          onClick={togglePower}
+          className={`rounded-2xl px-6 py-2.5 text-sm font-semibold transition-colors ${
+            isOnline ? "bg-redstone/20 text-redstone hover:bg-redstone/30" : "bg-emerald/20 text-emerald hover:bg-emerald/30"
+          }`}
+        >
+          {isOnline ? "Stop Server" : status === "starting" ? "Starting…" : status === "stopping" ? "Stopping…" : "Start Server"}
         </button>
-      </PageHeader>
-      <div className="flex-1 overflow-auto scrollbar-thin p-4 lg:p-8 space-y-5">
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-          <StatCard label="CPU"     value="43%"    sub="+4%"      pct={43}/>
-          <StatCard label="Memory"  value="5.8 GB" sub="72%"      pct={72} accent="amber"/>
-          <StatCard label="Players" value="14"     sub="Peak 23"/>
-          <StatCard label="Uptime"  value={uptime !== null ? fmtUptime(uptime) : "\u2026"} sub="Process"/>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard label="CPU" value={metrics ? metrics.cpu+"%" : "--"} sub="" pct={metrics?.cpu ?? 0} />
+        <StatCard label="Memory" value={metrics ? metrics.ram+"%" : "--"} sub="" pct={metrics?.ram ?? 0} accent="amber" />
+        <StatCard label="Disk" value={metrics ? metrics.disk+"%" : "--"} sub="" pct={metrics?.disk ?? 0} />
+        <StatCard label="Uptime" value={metrics ? fmtUptime(metrics.uptime) : "--"} />
+      </div>
+
+      <div className="panel-line rounded-[28px] p-6">
+        <p className="text-[10px] uppercase tracking-[0.3em] text-moss mb-4">Server status</p>
+        <div className="flex items-center gap-3">
+          <div className={`w-2.5 h-2.5 rounded-full ${
+            isOnline ? "bg-emerald animate-pulse" : status === "starting" || status === "stopping" ? "bg-amber-400 animate-pulse" : "bg-white/20"
+          }`} />
+          <span className="font-semibold capitalize">{status}</span>
+          {software && (
+            <span className="ml-auto text-xs text-white/40">
+              {software.type.charAt(0).toUpperCase()+software.type.slice(1)} {software.version}
+            </span>
+          )}
         </div>
-        <div className="grid xl:grid-cols-[1.2fr_.8fr] gap-4">
-          <article className="panel-line rounded-[28px] p-6">
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.3em] text-moss">Activity</p>
-                <h2 className="text-xl font-bold mt-1">Recent timeline</h2>
-              </div>
-              <span className="badge px-3 py-2 rounded-full text-xs">Auto-refresh</span>
-            </div>
-            <div className="space-y-4">
-              {TIMELINE.map(item => (
-                <div key={item.title} className="flex items-start gap-4">
-                  <div className={`mt-2 h-2.5 w-2.5 rounded-full flex-shrink-0 ${item.color}`}/>
-                  <div><p className="font-semibold text-sm">{item.title}</p><p className="text-xs text-white/55 mt-0.5">{item.desc}</p></div>
-                  <span className="ml-auto text-xs text-white/35 flex-shrink-0">{item.ago}</span>
-                </div>
-              ))}
-            </div>
-          </article>
-          <article className="panel-line rounded-[28px] p-6">
-            <p className="text-[10px] uppercase tracking-[0.3em] text-moss">Quick actions</p>
-            <div className="mt-4 grid gap-2.5">
-              {ACTIONS.map(a => (
-                <button key={a} className="rounded-2xl bg-white/5 hover:bg-white/10 px-4 py-3.5 text-left text-sm transition-colors">{a}</button>
-              ))}
-            </div>
-          </article>
-        </div>
+        {!isOnline && status === "offline" && (
+          <p className="text-sm text-white/40 mt-3">Start the server to see live data.</p>
+        )}
       </div>
     </div>
   );

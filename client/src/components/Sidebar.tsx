@@ -11,7 +11,7 @@ const NAV = [
   { to:"/settings", label:"Settings"      },
 ];
 export function Sidebar() {
-  const { status, togglePower } = useServer();
+  const { status, togglePower, metrics, software } = useServer();
   const { logout } = useAuth();
   return (
     <aside className="glass rounded-[28px] p-4 lg:p-5 flex flex-col gap-4">
@@ -41,16 +41,16 @@ export function Sidebar() {
           <span className={`h-2 w-2 rounded-full ${status==="online"?"bg-mint":"bg-redstone"}`}/>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="text-white/70">Paper 1.20.6</span>
+          <span className="text-white/70">{software ? `${software.type} ${software.version}` : "No server"}</span>
           <button onClick={togglePower}
             className={`rounded-full px-3 py-1 text-xs font-bold transition-colors ${status==="online"?"bg-emerald text-coal":"bg-redstone text-white"}`}>
             {status==="online"?"Online":"Offline"}
           </button>
         </div>
         <div className="h-2 rounded-full bg-white/5 overflow-hidden">
-          <div className="h-full rounded-full bg-gradient-to-r from-emerald to-mint" style={{width:"72%"}}/>
+          <div className="h-full rounded-full bg-gradient-to-r from-emerald to-mint" style={{width: metrics ? `${metrics.ram}%` : "0%"}}/>
         </div>
-        <p className="text-xs text-white/40">72% RAM · survival-01</p>
+        <p className="text-xs text-white/40">{metrics ? metrics.ram+"% RAM" : "--% RAM"}</p>
         <button onClick={()=>logout()} className="text-xs text-white/40 hover:text-white transition-colors">Logout →</button>
       </div>
     </aside>
