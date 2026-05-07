@@ -24,7 +24,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET ?? "voxel-secret-change-me",
   resave: false,
   saveUninitialized: false,
-  cookie: { httpOnly: true, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 },
+  cookie: { httpOnly: true, sameSite: "none", secure: false, path: "/", maxAge: 7 * 24 * 60 * 60 * 1000 },
 }));
 
 function requireAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
