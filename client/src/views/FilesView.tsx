@@ -1,74 +1,185 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "../components/PageHeader";
-const TREE = [
-  {name:"server root",path:"/"},{name:"plugins",path:"/plugins"},{name:"world",path:"/world"},
-  {name:"mods",path:"/mods"},{name:"config",path:"/config"},{name:"backups",path:"/backups"},{name:"logs",path:"/logs"},
-];
-type F = {name:string;type:string;size:string;modified:string};
-const FILES: Record<string,F[]> = {
-  "/":       [{name:"server.jar",type:"Executable",size:"46 MB",modified:"Today 15:02"},{name:"server.properties",type:"Config",size:"3 KB",modified:"Today 14:33"},{name:"eula.txt",type:"Text",size:"1 KB",modified:"Yesterday"}],
-  "/plugins":[{name:"EssentialsX.jar",type:"Plugin",size:"4.2 MB",modified:"Today 17:02"},{name:"dynmap",type:"Folder",size:"—",modified:"Today 16:15"},{name:"LuckPerms-Bukkit.jar",type:"Plugin",size:"1.6 MB",modified:"Yesterday"},{name:"ViaVersion.jar",type:"Plugin",size:"5.5 MB",modified:"Yesterday"}],
-  "/world":  [{name:"level.dat",type:"Data",size:"12 KB",modified:"Today 17:00"},{name:"region",type:"Folder",size:"—",modified:"Today 17:00"}],
-  "/logs":   [{name:"latest.log",type:"Log",size:"1.2 MB",modified:"Now"},{name:"2026-05-05-1.log",type:"Log",size:"4.4 MB",modified:"Yesterday"}],
+
+interface Entry { name: string; type: "file"|"dir"; size: number|null; modified: string; }
+
+const EXT_LANG: Record<string,string> = {
+  json:"json", yml:"yaml", yaml:"yaml", toml:"toml",
+  properties:"properties", txt:"text", log:"text",
+  js:"javascript", ts:"typescript", sh:"bash",
 };
+
+function fmt(bytes: number|null) {
+  if (bytes === null) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1048576) return `${(bytes/1024).toFixed(1)} KB`;
+  return `${(bytes/1048576).toFixed(1)} MB`;
+}
+
 export function FilesView() {
-  const [activePath,setActivePath] = useState("/plugins");
-  const fileList = FILES[activePath]??[];
+  const [cwd, setCwd]           = useState("/");
+  const [entries, setEntries]   = useState<Entry[]>([]);
+  const [selected, setSelected] = useState<string|null>(null);
+  const [content, setContent]   = useState<string|null>(null);
+  const [saving, setSaving]     = useState(false);
+  const [err, setErr]           = useState<string|null>(null);
+  const [loading, setLoading]   = useState(false);
+  const [newName, setNewName]   = useState("");
+  const [showNew, setShowNew]   = useState<"file"|"dir"|null>(null);
+
+  const load = useCallback(async (p: string) => {
+    setLoading(true); setErr(null);
+    const r = await fetch(`/api/files?path=${encodeURIComponent(p)}`, { credentials: "include" });
+    const j = await r.json();
+    setLoading(false);
+    if (!j.ok) { setErr(j.message); return; }
+    setCwd(p);
+    setEntries(j.entries.sort((a:Entry,b:Entry) => {
+      if (a.type !== b.type) return a.type==="dir"?-1:1;
+      return a.name.localeCompare(b.name);
+    }));
+  }, []);
+
+  useEffect(() => { load("/"); }, [load]);
+
+  async function openFile(name: string) {
+    const fp = cwd === "/" ? `/${name}` : `${cwd}/${name}`;
+    setSelected(fp); setContent(null);
+    const r = await fetch(`/api/files/read?path=${encodeURIComponent(fp)}`, { credentials: "include" });
+    const j = await r.json();
+    if (!j.ok) { setErr(j.message); return; }
+    setContent(j.content);
+  }
+
+  async function saveFile() {
+    if (selected === null || content === null) return;
+    setSaving(true);
+    await fetch("/api/files/write", {
+      method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: selected, content }),
+    });
+    setSaving(false);
+  }
+
+  async function deleteEntry(name: string, type: string) {
+    if (!confirm(`Delete ${name}?`)) return;
+    const fp = cwd === "/" ? `/${name}` : `${cwd}/${name}`;
+    await fetch(`/api/files?path=${encodeURIComponent(fp)}`, { method: "DELETE", credentials: "include" });
+    if (selected === fp) { setSelected(null); setContent(null); }
+    load(cwd);
+  }
+
+  async function createNew() {
+    if (!newName) return;
+    const fp = cwd === "/" ? `/${newName}` : `${cwd}/${newName}`;
+    if (showNew === "dir") {
+      await fetch("/api/files/mkdir", { method:"POST", credentials:"include", headers:{"Content-Type":"application/json"}, body: JSON.stringify({path:fp}) });
+    } else {
+      await fetch("/api/files/write", { method:"POST", credentials:"include", headers:{"Content-Type":"application/json"}, body: JSON.stringify({path:fp, content:""}) });
+    }
+    setShowNew(null); setNewName(""); load(cwd);
+  }
+
+  function navigate(name: string) {
+    const next = cwd === "/" ? `/${name}` : `${cwd}/${name}`;
+    setSelected(null); setContent(null); load(next);
+  }
+
+  function goUp() {
+    if (cwd === "/") return;
+    const parts = cwd.split("/").filter(Boolean);
+    parts.pop();
+    load(parts.length ? "/" + parts.join("/") : "/");
+  }
+
+  const breadcrumbs = ["/", ...cwd.split("/").filter(Boolean)];
+
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       <PageHeader title="Files">
-        <button className="rounded-full panel-line px-4 py-2 text-sm hover:bg-white/10 transition-colors">Upload</button>
-        <button className="rounded-full panel-line px-4 py-2 text-sm hover:bg-white/10 transition-colors">New folder</button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowNew("file")} className="badge px-3 py-1 rounded-full text-xs hover:bg-white/10 transition-colors">+ File</button>
+          <button onClick={() => setShowNew("dir")}  className="badge px-3 py-1 rounded-full text-xs hover:bg-white/10 transition-colors">+ Folder</button>
+        </div>
       </PageHeader>
-      <div className="flex-1 overflow-hidden p-4 lg:p-8 grid xl:grid-cols-[260px_1fr] gap-4">
-        <aside className="panel-line rounded-[28px] p-5 overflow-auto scrollbar-thin">
-          <p className="text-[10px] uppercase tracking-[0.3em] text-moss mb-4">Folder tree</p>
-          <ul className="space-y-1">
-            {TREE.map(({name,path})=>(
-              <li key={path}>
-                <button onClick={()=>setActivePath(path)}
-                  className={`w-full text-left rounded-2xl px-3 py-2.5 text-sm transition-colors ${activePath===path?"bg-white/10 text-mint font-semibold":"hover:bg-white/5 text-white/65"}`}>
-                  └ {name}
-                </button>
-              </li>
+
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-1 px-4 lg:px-8 py-2 font-mono text-xs text-white/40 border-b border-white/5 flex-wrap">
+        {breadcrumbs.map((seg, i) => {
+          const path = "/" + breadcrumbs.slice(1, i+1).join("/");
+          return (
+            <span key={i} className="flex items-center gap-1">
+              {i > 0 && <span className="text-white/20">/</span>}
+              <button onClick={() => load(i===0?"/" : path)} className="hover:text-mint transition-colors">
+                {i===0 ? "~" : seg}
+              </button>
+            </span>
+          );
+        })}
+      </div>
+
+      {showNew && (
+        <div className="flex items-center gap-2 px-4 lg:px-8 py-2 bg-white/5 border-b border-white/5">
+          <span className="text-xs text-white/50">New {showNew}:</span>
+          <input autoFocus className="flex-1 max-w-xs rounded-lg bg-white/5 border border-white/10 px-3 py-1 text-sm outline-none focus:border-mint/50"
+            value={newName} onChange={e=>setNewName(e.target.value)}
+            onKeyDown={e=>{ if(e.key==="Enter") createNew(); if(e.key==="Escape") {setShowNew(null);setNewName("");} }}
+            placeholder={showNew==="dir"?"folder-name":"filename.txt"} />
+          <button onClick={createNew} className="text-xs text-mint hover:text-mint/70">Create</button>
+          <button onClick={()=>{setShowNew(null);setNewName("");}} className="text-xs text-white/30 hover:text-white/60">Cancel</button>
+        </div>
+      )}
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* File tree */}
+        <div className="w-64 lg:w-72 border-r border-white/5 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-auto scrollbar-thin">
+            {cwd !== "/" && (
+              <button onClick={goUp} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-white/40 hover:text-white/70 hover:bg-white/5 transition-colors font-mono">
+                ↑ ..
+              </button>
+            )}
+            {loading && <div className="px-4 py-3 text-xs text-white/30">Loading…</div>}
+            {err    && <div className="px-4 py-3 text-xs text-red-400">{err}</div>}
+            {entries.map(e => (
+              <div key={e.name}
+                className={`group flex items-center gap-2 px-4 py-2 text-sm cursor-pointer transition-colors
+                  ${selected === (cwd==="/"?`/${e.name}`:`${cwd}/${e.name}`) ? "bg-mint/10 text-mint" : "hover:bg-white/5 text-white/70"}`}
+                onClick={() => e.type==="dir" ? navigate(e.name) : openFile(e.name)}>
+                <span className="text-base leading-none select-none">{e.type==="dir"?"📁":"📄"}</span>
+                <span className="flex-1 truncate font-mono text-xs">{e.name}</span>
+                <button onClick={ev=>{ ev.stopPropagation(); deleteEntry(e.name, e.type); }}
+                  className="opacity-0 group-hover:opacity-100 text-red-400/60 hover:text-red-400 text-xs transition-opacity px-1">✕</button>
+              </div>
             ))}
-          </ul>
-        </aside>
-        <section className="panel-line rounded-[28px] p-5 flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between mb-4 flex-shrink-0">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.3em] text-moss">Path</p>
-              <h2 className="text-xl font-bold mt-1 font-mono">{activePath}</h2>
+          </div>
+        </div>
+
+        {/* Editor */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {selected && content !== null ? (
+            <>
+              <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
+                <span className="font-mono text-xs text-white/40">{selected}</span>
+                <button onClick={saveFile}
+                  className="rounded-full bg-mint/20 text-mint border border-mint/30 px-4 py-1 text-xs font-bold hover:bg-mint/30 transition-colors">
+                  {saving ? "Saving…" : "Save"}
+                </button>
+              </div>
+              <textarea
+                className="flex-1 bg-transparent p-4 font-mono text-sm text-white/80 resize-none outline-none scrollbar-thin"
+                value={content}
+                onChange={e => setContent(e.target.value)}
+                spellCheck={false}
+              />
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-white/20 text-sm">
+              {selected ? "Loading…" : "Select a file to edit"}
             </div>
-          </div>
-          <div className="overflow-auto scrollbar-thin rounded-2xl border border-white/8 flex-1">
-            <table className="min-w-full text-sm">
-              <thead className="bg-white/5 text-white/45 uppercase tracking-[0.22em] text-xs">
-                <tr>
-                  <th className="text-left px-4 py-3">Name</th><th className="text-left px-4 py-3">Type</th>
-                  <th className="text-left px-4 py-3">Size</th><th className="text-left px-4 py-3">Modified</th><th className="px-4 py-3"/>
-                </tr>
-              </thead>
-              <tbody>
-                {fileList.length===0
-                  ?<tr><td colSpan={5} className="px-4 py-12 text-center text-white/35">This folder is empty.</td></tr>
-                  :fileList.map(f=>(
-                    <tr key={f.name} className="border-t border-white/6 hover:bg-white/4 transition-colors">
-                      <td className="px-4 py-4 font-semibold">{f.name}</td>
-                      <td className="px-4 py-4 text-white/55">{f.type}</td>
-                      <td className="px-4 py-4 text-white/55 font-mono">{f.size}</td>
-                      <td className="px-4 py-4 text-white/55">{f.modified}</td>
-                      <td className="px-4 py-4 text-right">
-                        <button className="text-xs text-white/35 hover:text-mint transition-colors px-2">Edit</button>
-                        <button className="text-xs text-white/35 hover:text-redstone transition-colors px-2">Delete</button>
-                      </td>
-                    </tr>
-                  ))
-                }
-              </tbody>
-            </table>
-          </div>
-        </section>
+          )}
+        </div>
       </div>
     </div>
   );
