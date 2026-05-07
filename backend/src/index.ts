@@ -9,6 +9,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import authRouter     from "./routes/auth";
 import playersRouter  from "./routes/players";
 import configRouter   from "./routes/config";
+import filesRouter from "./routes/files";
 import softwareRouter from "./routes/software";
 import { start, stop, restart, sendCommand, status, getBuffer, events } from "./server-process";
 
@@ -34,6 +35,7 @@ function requireAuth(req: express.Request, res: express.Response, next: express.
 app.use("/api/auth",     authRouter);
 app.use("/api/players",  requireAuth, playersRouter);
 app.use("/api/config",   requireAuth, configRouter);
+app.use("/api/files",   requireAuth, filesRouter);
 app.use("/api/software", requireAuth, softwareRouter);
 app.get("/api/health",   (_req, res) => res.json({ ok: true, uptime: process.uptime(), status }));
 
