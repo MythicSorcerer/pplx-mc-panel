@@ -1,10 +1,10 @@
 import { Router, Request, Response } from "express";
+import "dotenv/config";
 
 const router = Router();
 
-// Single hardcoded admin account — replace with DB lookup later
-const ADMIN_EMAIL    = "admin@voxel.local";
-const ADMIN_PASSWORD = "admin";
+const ADMIN_EMAIL    = process.env.ADMIN_EMAIL    ?? "admin@voxel.local";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? (() => { throw new Error("ADMIN_PASSWORD env var not set!"); })();
 
 declare module "express-session" {
   interface SessionData { userId: string; }
