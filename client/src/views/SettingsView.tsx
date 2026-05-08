@@ -60,6 +60,16 @@ export function SettingsView() {
               </button>
             </div>
             <div className="panel-line rounded-[28px] p-6">
+              <p className="text-[10px] uppercase tracking-[0.3em] text-moss mb-3">Server</p>
+              <div className="rounded-3xl bg-white/5 border border-white/8 p-5 space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-white/55">Address</span>
+                  <span className="font-mono text-mint">{window.location.hostname}:25565</span>
+                </div>
+                <p className="text-xs text-white/40">Direct connect using Minecraft client.</p>
+              </div>
+            </div>
+            <div className="panel-line rounded-[28px] p-6">
               <p className="text-[10px] uppercase tracking-[0.3em] text-moss mb-3">About</p>
               {[["Frontend","React 18 + Tailwind v4"],["Backend","Express + TypeScript"],["Auth","httpOnly cookies"],["Console","xterm.js + WebSocket"],["Phase","10 \u2014 Web UI"]].map(([k,v]) => (
                 <div key={k} className="flex justify-between text-sm py-1.5">
