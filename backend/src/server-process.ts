@@ -55,7 +55,10 @@ async function dockerPullImage(): Promise<void> {
 async function dockerBuildImage(): Promise<boolean> {
   const repoRoot = path.join(__dirname, "../..");
   const dockerfilePath = path.join(repoRoot, "Dockerfile.mcserver");
-  const jarPath = path.join(repoRoot, "server.jar");
+  const mcDir = process.env.MC_DIR ?? path.join(process.env.HOME || "", "minecraft");
+  const jarPath = process.env.MC_JAR 
+    ? path.join(path.dirname(process.env.MC_JAR), "server.jar")
+    : path.join(mcDir, "server.jar");
 
   if (!fs.existsSync(dockerfilePath)) {
     emit(`[panel] Dockerfile.mcserver not found`);
@@ -64,12 +67,10 @@ async function dockerBuildImage(): Promise<boolean> {
 
   if (!fs.existsSync(jarPath)) {
     emit(`[panel] server.jar not found at ${jarPath}`);
-    emit(`[panel] Put server.jar in the repo root folder`);
     return false;
   }
 
-  emit(`[panel] Building ${MC_IMAGE} from Dockerfile...`);
-
+  emit(`[panel] Building ${MC_IMAGE}...`);
   try {
     await execCmd(`docker build -f Dockerfile.mcserver -t ${MC_IMAGE} ${repoRoot}`);
     emit(`[panel] Built ${MC_IMAGE}`);
