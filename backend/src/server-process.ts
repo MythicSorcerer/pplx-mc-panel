@@ -56,7 +56,8 @@ async function dockerPullImage(): Promise<void> {
 }
 
 async function dockerBuildImage(): Promise<boolean> {
-  const repoRoot = process.env.INSTALL_DIR || path.join(__dirname, "../..");
+  const repoRoot = process.env.INSTALL_DIR || process.cwd().endsWith("backend") ? process.cwd().replace("/backend", "") : process.cwd();
+  emit(`[panel] Building from ${repoRoot}...`);
   const dockerfilePath = path.join(repoRoot, "Dockerfile.mcserver");
   const mcDir = process.env.MC_DIR || path.join(process.env.HOME || "", "minecraft");
   const sourceJar = path.join(mcDir, "server.jar");
