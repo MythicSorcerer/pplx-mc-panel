@@ -11,7 +11,7 @@ const baseEntries: Entry[] = [
 
 function mockFetchWithEntries(entries: Entry[]) {
   const json = vi.fn().mockResolvedValue({ ok: true, entries });
-  const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json } as Response);
+  const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json } as unknown as Response);
   vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch);
   return fetchMock;
 }
@@ -54,8 +54,8 @@ test("emoji click expands directory and loads children", async () => {
   const jsonChild = vi.fn().mockResolvedValue({ ok: true, entries: childEntries });
   const fetchMock = vi
     .fn()
-    .mockResolvedValueOnce({ ok: true, status: 200, json: jsonRoot } as Response)
-    .mockResolvedValueOnce({ ok: true, status: 200, json: jsonChild } as Response);
+    .mockResolvedValueOnce({ ok: true, status: 200, json: jsonRoot } as unknown as Response)
+    .mockResolvedValueOnce({ ok: true, status: 200, json: jsonChild } as unknown as Response);
   vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch);
 
   render(<FilesView />);
