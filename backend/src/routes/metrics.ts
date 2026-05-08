@@ -19,7 +19,8 @@ router.get("/", async (req, res) => {
 
   let cpu = 0;
   try {
-    const { user, nice, system, idle } = await getCpuTimes();
+    const times = await getCpuTimes();
+    const [user, nice, system, idle] = times;
     if (lastCpuTimes) {
       const [pu, pn, ps, pi] = lastCpuTimes;
       const totalDelta = (user - pu) + (nice - pn) + (system - ps) + (idle - pi);
@@ -27,7 +28,7 @@ router.get("/", async (req, res) => {
       cpu = totalDelta > 0 ? Math.round((1 - idleDelta / totalDelta) * 100) : 0;
       cpu = Math.max(0, Math.min(100, cpu));
     }
-    lastCpuTimes = [user, nice, system, idle];
+    lastCpuTimes = times;
   } catch {}
 
   const MC_DIR = process.env.MC_DIR ?? path.join(os.homedir(), "minecraft");
@@ -43,7 +44,7 @@ router.get("/", async (req, res) => {
   res.json({ cpu, ram, disk, uptime });
 });
 
-async function getCpuTimes() {
+async function getCpuTimes(): Promise<number[]> {
   const stat = await fs.promises.readFile("/proc/stat", "utf-8");
   const line = stat.split("\n").find(l => l.startsWith("cpu ")) || "cpu 0 0 0 0 0 0 0 0 0 0";
   const parts = line.split(/\s+/);
@@ -54,3 +55,5 @@ async function getCpuTimes() {
     parseInt(parts[4] || "0")
   ];
 }
+
+export default router;
