@@ -140,12 +140,27 @@ router.get("/current", async (_req: Request, res: Response) => {
     const execAsync = promisify(exec);
     
     try {
+      const { stdout } = await execAsync(`docker logs mcserver 2>&1 | head -20`);
+      const logs = stdout;
+      if (logs.includes("Paper")) {
+        const match = logs.match(/Paper\s+([\d.]+)/);
+        return res.json({ ok: true, type: "Paper", version: match ? match[1] : "1.21+" });
+      }
+      if (logs.includes("Purpur")) {
+        const match = logs.match(/Purpur\s+([\d.]+)/);
+        return res.json({ ok: true, type: "Purpur", version: match ? match[1] : "1.21+" });
+      }
+      if (logs.includes("Fabric")) {
+        return res.json({ ok: true, type: "Fabric", version: "1.21+" });
+      }
+    } catch {}
+    
+    try {
       const { stdout } = await execAsync(`docker ps --filter name=mcserver --format "{{.Image}}"`);
       const image = stdout.trim();
       if (image) {
-        const type = image.includes("purpur") ? "purpur" : image.includes("paper") ? "paper" : image.includes("fabric") ? "fabric" : "docker";
-        const version = "1.21+";
-        return res.json({ ok: true, type, version });
+        const type = image.toLowerCase().includes("purpur") ? "Purpur" : image.toLowerCase().includes("paper") ? "Paper" : image.toLowerCase().includes("fabric") ? "Fabric" : "Docker";
+        return res.json({ ok: true, type, version: "1.21+" });
       }
     } catch {}
 
@@ -154,10 +169,6 @@ router.get("/current", async (_req: Request, res: Response) => {
     if (manifestExists) {
       const manifest = JSON.parse(await fs.readFile(manifestPath, "utf-8"));
       return res.json({ ok: true, type: manifest.type, version: manifest.version });
-    }
-    const jarExists = await fs.access(JAR_PATH).then(() => true).catch(() => false);
-    if (jarExists) {
-      return res.json({ ok: true, type: "unknown", version: "installed" });
     }
     return res.json({ ok: true, type: "none", version: "" });
   } catch {
