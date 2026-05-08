@@ -83,12 +83,16 @@ export async function start() {
 
     const cpus = process.env.MC_CPUS ?? "2";
     const mem = process.env.MC_MEM ?? "3G";
+    const mcDir = process.env.MC_DIR ?? path.join(process.env.HOME || "", "minecraft");
+
+    // Clean up existing container
+    await execCmd(`docker rm -f ${MC_CONTAINER}`).catch(() => {});
 
     const runCmd = `docker run -d --name ${MC_CONTAINER} \
       --cpus ${cpus} \
       --memory ${mem} \
       -p 25565:25565 \
-      -v mc-data:/data \
+      -v ${mcDir}:/data \
       --restart unless-stopped \
       ${MC_IMAGE}`;
 
