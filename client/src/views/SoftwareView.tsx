@@ -82,7 +82,7 @@ export default function SoftwareView() {
                 <select
                   value={selected[sw.id]}
                   onChange={(e) => setSelected((s) => ({ ...s, [sw.id]: e.target.value }))}
-                  style={{ width: "100%", marginTop: 4, padding: "0.5rem 0.75rem", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text)", fontSize: "0.875rem", cursor: "pointer" }}
+                  style={{ width: "100%", minWidth: 140, marginTop: 4, padding: "0.5rem 0.75rem", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text)", fontSize: "0.875rem", cursor: "pointer" }}
                 >
                   {versions[sw.id].map((v) => <option key={v} value={v}>{v}</option>)}
                 </select>
