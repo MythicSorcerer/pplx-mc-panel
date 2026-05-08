@@ -21,6 +21,8 @@ export function FilesView() {
   const [loading, setLoading]   = useState(false);
   const [newName, setNewName]   = useState("");
   const [showNew, setShowNew]   = useState<"file"|"dir"|null>(null);
+  const [deleteMode, setDeleteMode] = useState(false);
+  const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
   // Sub-directory entries cache: path → entries
   const [subEntries, setSubEntries] = useState<Record<string, Entry[]>>({});
 
@@ -82,10 +84,45 @@ export function FilesView() {
     setSaving(false);
   }
 
-  async function deleteEntry(fp: string, type: string, name: string) {
-    if (!confirm(`Delete ${name}?`)) return;
-    await fetch(`/api/files?path=${encodeURIComponent(fp)}`, { method: "DELETE", credentials: "include" });
-    if (selected === fp) { setSelected(null); setContent(null); }
+  function toggleSelectedPath(fp: string) {
+    setSelectedPaths(prev => {
+      const next = new Set(prev);
+      if (next.has(fp)) next.delete(fp);
+      else next.add(fp);
+      return next;
+    });
+  }
+
+  function clearSelection() {
+    setSelectedPaths(new Set());
+  }
+
+  function getEntryType(fp: string): Entry["type"]|null {
+    const queue: { entries: Entry[]; basePath: string }[] = [{ entries, basePath: cwd }];
+    while (queue.length) {
+      const { entries: list, basePath } = queue.shift()!;
+      for (const entry of list) {
+        const path = basePath === "/" ? `/${entry.name}` : `${basePath}/${entry.name}`;
+        if (path === fp) return entry.type;
+        if (entry.type === "dir" && subEntries[path]) {
+          queue.push({ entries: subEntries[path], basePath: path });
+        }
+      }
+    }
+    return null;
+  }
+
+  async function deleteSelected() {
+    if (selectedPaths.size === 0) return;
+    const message = "Delete selected items? This will remove folders and their contents.";
+    if (!confirm(message)) return;
+    const paths = Array.from(selectedPaths);
+    await Promise.all(paths.map(fp =>
+      fetch(`/api/files?path=${encodeURIComponent(fp)}`, { method: "DELETE", credentials: "include" })
+    ));
+    if (selected && selectedPaths.has(selected)) { setSelected(null); setContent(null); }
+    clearSelection();
+    setDeleteMode(false);
     load(cwd);
   }
 
@@ -108,6 +145,11 @@ export function FilesView() {
       const isSelected = selected === fp;
       const isExpanded = expanded.has(fp);
       const indent = depth * 16;
+      const handleRowActivate = () => {
+        if (deleteMode) return;
+        if (e.type === "dir") toggleDir(fp);
+        else openFile(fp);
+      };
 
       const row = (
         <div
@@ -115,11 +157,27 @@ export function FilesView() {
           className={`group flex items-center gap-2 px-4 py-2 text-sm cursor-pointer transition-colors w-full
             ${isSelected ? "bg-mint/10 text-mint" : "hover:bg-white/5 text-white/70"}`}
           style={{ paddingLeft: `${16 + indent}px` }}
+          onClick={handleRowActivate}
         >
+          {/* Bulk select */}
+          <div className="w-4 flex items-center justify-center flex-shrink-0">
+            {deleteMode ? (
+              <input
+                type="checkbox"
+                aria-label={`Select ${e.name}`}
+                checked={selectedPaths.has(fp)}
+                onChange={() => toggleSelectedPath(fp)}
+                onClick={ev => ev.stopPropagation()}
+                className="accent-mint"
+              />
+            ) : (
+              <span className="w-4" />
+            )}
+          </div>
           {/* Expand/collapse arrow for dirs */}
           {e.type === "dir" ? (
             <button
-              onClick={() => toggleDir(fp)}
+              onClick={ev => { ev.stopPropagation(); toggleDir(fp); }}
               className="w-4 h-4 flex items-center justify-center text-white/40 hover:text-white/80 flex-shrink-0 transition-colors"
               aria-label={isExpanded ? "Collapse" : "Expand"}
             >
@@ -134,14 +192,17 @@ export function FilesView() {
           )}
 
           {/* Icon */}
-          <span className="text-base leading-none select-none flex-shrink-0">
+          <button
+            className="text-base leading-none select-none flex-shrink-0"
+            onClick={ev => { ev.stopPropagation(); handleRowActivate(); }}
+            aria-label={e.type === "dir" ? (isExpanded ? "Collapse folder" : "Expand folder") : "Open file"}
+          >
             {e.type === "dir" ? (isExpanded ? "📂" : "📁") : "📄"}
-          </span>
+          </button>
 
           {/* Name — clicks open file or toggle dir */}
           <span
             className="flex-1 truncate font-mono text-xs"
-            onClick={() => e.type === "dir" ? toggleDir(fp) : openFile(fp)}
           >
             {e.name}
           </span>
@@ -151,25 +212,6 @@ export function FilesView() {
             <span className="text-xs text-white/30 font-mono flex-shrink-0 mr-2">{fmt(e.size)}</span>
           )}
 
-          {/* Actions (always visible) */}
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {e.type === "file" && (
-              <button
-                onClick={() => openFile(fp)}
-                className="text-xs text-white/30 hover:text-mint px-1 transition-colors"
-                title="Edit"
-              >
-                ✏️
-              </button>
-            )}
-            <button
-              onClick={ev => { ev.stopPropagation(); deleteEntry(fp, e.type, e.name); }}
-              className="text-xs text-red-400/50 hover:text-red-400 px-1 transition-colors"
-              title="Delete"
-            >
-              ✕
-            </button>
-          </div>
         </div>
       );
 
@@ -185,8 +227,34 @@ export function FilesView() {
     <div className="flex flex-col flex-1 overflow-hidden">
       <PageHeader title="Files">
         <div className="flex gap-2">
-          <button onClick={() => setShowNew("file")} className="badge px-3 py-1 rounded-full text-xs hover:bg-white/10 transition-colors">+ File</button>
-          <button onClick={() => setShowNew("dir")}  className="badge px-3 py-1 rounded-full text-xs hover:bg-white/10 transition-colors">+ Folder</button>
+          {!deleteMode ? (
+            <>
+              <button onClick={() => setShowNew("file")} className="badge px-3 py-1 rounded-full text-xs hover:bg-white/10 transition-colors">+ File</button>
+              <button onClick={() => setShowNew("dir")}  className="badge px-3 py-1 rounded-full text-xs hover:bg-white/10 transition-colors">+ Folder</button>
+              <button
+                onClick={() => { clearSelection(); setDeleteMode(true); }}
+                className="badge px-3 py-1 rounded-full text-xs hover:bg-white/10 transition-colors"
+              >
+                Delete mode
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={deleteSelected}
+                className="badge px-3 py-1 rounded-full text-xs hover:bg-white/10 transition-colors"
+                disabled={selectedPaths.size === 0}
+              >
+                Delete selected
+              </button>
+              <button
+                onClick={() => { clearSelection(); setDeleteMode(false); }}
+                className="badge px-3 py-1 rounded-full text-xs hover:bg-white/10 transition-colors"
+              >
+                Cancel
+              </button>
+            </>
+          )}
         </div>
       </PageHeader>
 
@@ -206,7 +274,7 @@ export function FilesView() {
       </div>
 
       {showNew && (
-        <div className="flex items-center gap-2 px-4 lg:px-8 py-2 bg-white/5 border-b border-white/5">
+        <div className="flex items-center gap-3 px-4 lg:px-8 py-3 my-2 bg-white/5 border-b border-white/5">
           <span className="text-xs text-white/50">New {showNew}:</span>
           <input autoFocus className="flex-1 max-w-xs rounded-lg bg-white/5 border border-white/10 px-3 py-1 text-sm outline-none focus:border-mint/50"
             value={newName} onChange={e=>setNewName(e.target.value)}
@@ -242,6 +310,7 @@ export function FilesView() {
                 className="flex-1 bg-transparent p-4 font-mono text-sm text-white/80 resize-none outline-none scrollbar-thin"
                 value={content}
                 onChange={e => setContent(e.target.value)}
+                aria-label={`Edit ${selected}`}
                 spellCheck={false}
               />
             </>
