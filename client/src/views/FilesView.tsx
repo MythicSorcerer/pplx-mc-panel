@@ -23,6 +23,9 @@ export function FilesView() {
   const [showNew, setShowNew]   = useState<"file"|"dir"|null>(null);
   const [deleteMode, setDeleteMode] = useState(false);
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<string[]>([]);
   // Sub-directory entries cache: path → entries
   const [subEntries, setSubEntries] = useState<Record<string, Entry[]>>({});
 
@@ -39,18 +42,26 @@ export function FilesView() {
     }));
   }, []);
 
-  useEffect(() => { load("/"); }, [load]);
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "f") {
         e.preventDefault();
-        document.getElementById("file-editor")?.focus();
+        setSearchOpen(true);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  useEffect(() => {
+    if (content && searchQuery) {
+      const lines = content.split("\n");
+      const results = lines.filter((l, i) => l.toLowerCase().includes(searchQuery.toLowerCase())).map((l, i) => `${i + 1}: ${l.slice(0, 80)}`);
+      setSearchResults(results);
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchQuery, content]);
 
   async function toggleDir(fullPath: string) {
     const next = new Set(expanded);
@@ -307,7 +318,7 @@ export function FilesView() {
         </div>
 
         {/* Editor */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden relative">
           {selected && content !== null ? (
             <>
               <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
@@ -325,6 +336,28 @@ export function FilesView() {
                 aria-label={`Edit ${selected}`}
                 spellCheck={false}
               />
+              {searchOpen && (
+                <div className="absolute inset-0 bg-coal/95 flex flex-col p-4 z-50">
+                  <div className="flex items-center gap-2 mb-4">
+                    <input
+                      autoFocus
+                      className="flex-1 rounded-lg bg-white/10 border border-white/20 px-3 py-2 text-white outline-none"
+                      placeholder="Search in file..."
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      onKeyDown={e => { if(e.key === "Escape") setSearchOpen(false); }}
+                    />
+                    <button onClick={() => setSearchOpen(false)} className="text-white/50 hover:text-white">Close</button>
+                  </div>
+                  <div className="flex-1 overflow-auto font-mono text-xs space-y-1">
+                    {searchResults.map((r, i) => (
+                      <div key={i} className="text-mint">{r}</div>
+                    ))}
+                    {!searchQuery && <p className="text-white/30">Type to search...</p>}
+                    {searchQuery && searchResults.length === 0 && <p className="text-white/30">No matches</p>}
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center text-white/20 text-sm">
