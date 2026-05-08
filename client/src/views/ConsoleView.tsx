@@ -65,7 +65,7 @@ export function ConsoleView() {
           <button
             onClick={handleRestart}
             disabled={!isOnline}
-            className="rounded-full px-3 py-1.5 text-xs font-bold bg-amber-500 text-coal hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="rounded-full px-3 py-1.5 text-xs font-bold bg-transparent border border-amber-500/40 text-amber-500 hover:bg-amber-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Restart
           </button>
