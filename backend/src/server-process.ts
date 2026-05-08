@@ -1,3 +1,5 @@
+import * as path from "path";
+import * as fs from "fs";
 import { exec } from "child_process";
 import { EventEmitter } from "events";
 import { promisify } from "util";
@@ -50,6 +52,24 @@ async function dockerPullImage(): Promise<void> {
   }
 }
 
+async function dockerBuildImage(): Promise<boolean> {
+  const dockerfilePath = path.join(process.cwd(), "Dockerfile.mcserver");
+  if (!fs.existsSync(dockerfilePath)) {
+    emit(`[panel] Dockerfile.mcserver not found at ${dockerfilePath}`);
+    return false;
+  }
+
+  emit(`[panel] Building ${MC_IMAGE} from Dockerfile...`);
+  try {
+    await execCmd(`docker build -f ${dockerfilePath} -t ${MC_IMAGE} ${process.cwd()}`);
+    emit(`[panel] Built ${MC_IMAGE}`);
+    return true;
+  } catch (e: any) {
+    emit(`[panel] Build failed: ${e.message}`);
+    return false;
+  }
+}
+
 export async function start() {
   if (await dockerIsRunning()) {
     emit("[panel] Server is already running");
@@ -61,18 +81,30 @@ export async function start() {
   emit(`[panel] Using image: ${MC_IMAGE}`);
 
   try {
-    await dockerPullImage();
+    await dockerPullImage().catch(() => {});
 
     const cpus = process.env.MC_CPUS ?? "2";
     const mem = process.env.MC_MEM ?? "3G";
 
-    await execCmd(`docker run -d --name ${MC_CONTAINER} \
+    const runCmd = `docker run -d --name ${MC_CONTAINER} \
       --cpus ${cpus} \
       --memory ${mem} \
       -p 25565:25565 \
       -v mc-data:/data \
       --restart unless-stopped \
-      ${MC_IMAGE}`);
+      ${MC_IMAGE}`;
+
+    try {
+      await execCmd(runCmd);
+    } catch {
+      emit("[panel] Image not found, trying to build...");
+      const built = await dockerBuildImage();
+      if (built) {
+        await execCmd(runCmd);
+      } else {
+        throw new Error("Could not build or find image");
+      }
+    }
 
     setStatus("running");
     startTime = Date.now();
