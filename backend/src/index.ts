@@ -15,7 +15,7 @@ import configRouter   from "./routes/config";
 import filesRouter from "./routes/files";
 import softwareRouter from "./routes/software";
 import metricsRouter from "./routes/metrics";
-import { start, stop, restart, sendCommand, status, getBuffer, events } from "./server-process";
+import { start, stop, restart, sendCommand, status, getBuffer, events, dockerIsRunning } from "./server-process";
 
 const app    = express();
 const server = http.createServer(app);
@@ -46,10 +46,15 @@ app.use("/api/software", requireAuth, softwareRouter);
 app.use("/api/metrics", requireAuth, metricsRouter);
 app.get("/api/health",   (_req, res) => res.json({ ok: true, uptime: process.uptime(), status }));
 
-app.post("/api/server/start",   requireAuth, (_req, res) => { start();   res.json({ ok: true }); });
-app.post("/api/server/stop",    requireAuth, (_req, res) => { stop();    res.json({ ok: true }); });
-app.post("/api/server/restart", requireAuth, (_req, res) => { restart(); res.json({ ok: true }); });
-app.get( "/api/server/status",  requireAuth, (_req, res) => res.json({ ok: true, status }));
+async function getServerStatus() {
+  const running = await dockerIsRunning();
+  return running ? "running" : "stopped";
+}
+
+app.post("/api/server/start",   requireAuth, async (_req, res) => { await start(); res.json({ ok: true }); });
+app.post("/api/server/stop",    requireAuth, async (_req, res) => { await stop(); res.json({ ok: true }); });
+app.post("/api/server/restart", requireAuth, async (_req, res) => { await restart(); res.json({ ok: true }); });
+app.get( "/api/server/status",  requireAuth, async (_req, res) => res.json({ ok: true, status: await getServerStatus() }));
 
 // ── WebSocket console ──────────────────────────────────────────────────────
 const wss = new WebSocketServer({ server, path: "/api/console-ws" });

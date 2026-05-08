@@ -135,6 +135,20 @@ router.post("/install", async (req: Request, res: Response) => {
 
 router.get("/current", async (_req: Request, res: Response) => {
   try {
+    const { exec } = await import("child_process");
+    const { promisify } = await import("util");
+    const execAsync = promisify(exec);
+    
+    try {
+      const { stdout } = await execAsync(`docker ps --filter name=mcserver --format "{{.Image}}"`);
+      const image = stdout.trim();
+      if (image) {
+        const type = image.includes("purpur") ? "purpur" : image.includes("paper") ? "paper" : image.includes("fabric") ? "fabric" : "docker";
+        const version = "1.21+";
+        return res.json({ ok: true, type, version });
+      }
+    } catch {}
+
     const manifestPath = path.join(MC_DIR, "manifest.json");
     const manifestExists = await fs.access(manifestPath).then(() => true).catch(() => false);
     if (manifestExists) {

@@ -39,7 +39,7 @@ function setStatus(s: ServerStatus) {
 
 export function getBuffer() { return [...logBuffer]; }
 
-async function dockerIsRunning(): Promise<boolean> {
+export async function dockerIsRunning(): Promise<boolean> {
   try {
     const out = await execCmd(`docker ps -a --filter name=^${MC_CONTAINER}$ --format {{.Status}}`);
     return out.includes("Up");
