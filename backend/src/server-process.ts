@@ -6,7 +6,7 @@ import fs from "fs";
 // Where the Minecraft server jar lives — set MC_DIR env var or edit this path
 const MC_DIR = process.env.MC_DIR ?? path.join(process.env.HOME ?? "", "minecraft");
 const JAR    = process.env.MC_JAR ?? "server.jar";
-const JAVA   = process.env.JAVA_BIN ?? "/usr/lib/jvm/java-21-openjdk/bin/java";
+const JAVA   = process.env.JAVA_BIN ?? "/usr/lib/jvm/jre-25-openjdk/bin/java";
 const JVM_ARGS = (process.env.JVM_ARGS ?? "-Xmx2G -Xms1G -Dterminal.ansi=true").split(" ");
 
 export type ServerStatus = "stopped" | "starting" | "running" | "stopping";
