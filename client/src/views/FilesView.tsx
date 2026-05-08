@@ -310,10 +310,11 @@ export function FilesView() {
       <div className="flex flex-1 overflow-hidden">
         {/* File tree — full width rows */}
         <div className="w-72 lg:w-80 border-r border-white/5 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-auto scrollbar-thin">
-            {loading && <div className="px-4 py-3 text-xs text-white/30">Loading\u2026</div>}
+<div className="flex-1 overflow-auto scrollbar-thin">
+            {loading && <div className="px-4 py-3 text-xs text-white/30">Loading…</div>}
             {err     && <div className="px-4 py-3 text-xs text-red-400">{err}</div>}
-            {renderRows(entries, cwd)}
+            {!loading && entries.length === 0 && <div className="px-4 py-3 text-xs text-white/30">No files. Click + File to create one.</div>}
+            {!loading && entries.length > 0 && renderRows(entries, cwd)}
           </div>
         </div>
 
