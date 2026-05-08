@@ -58,9 +58,10 @@ app.get( "/api/server/status",  requireAuth, async (_req, res) => res.json({ ok:
 
 // ── WebSocket console ──────────────────────────────────────────────────────
 const wss = new WebSocketServer({ server, path: "/api/console-ws" });
-wss.on("connection", (ws: WebSocket) => {
+wss.on("connection", async (ws: WebSocket) => {
   getBuffer().forEach(line => ws.send(line));
-  ws.send(`[panel] Server status: ${status}`);
+  const currentStatus = await getServerStatus();
+  ws.send(`[panel] Server status: ${currentStatus}`);
   const onLine = (line: string) => { if (ws.readyState === WebSocket.OPEN) ws.send(line); };
   events.on("line", onLine);
   ws.on("message", (raw) => {
