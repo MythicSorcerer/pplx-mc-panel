@@ -43,34 +43,26 @@ if ! command -v node &>/dev/null || [[ $(node -e "process.exit(parseInt(process.
 fi
 success "Node $(node --version) ready"
 
-# ── Install Java if missing ───────────────────────────────────────────────────
-if ! command -v java &>/dev/null; then
-  info "Installing Java 25..."
+# ── Install Docker ───────────────────────────────────────────────────────
+if ! command -v docker &>/dev/null; then
+  info "Installing Docker..."
   case "$PLATFORM" in
-    macos)   brew install openjdk@25 && sudo ln -sfn $(brew --prefix)/opt/openjdk@25/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-25.jdk ;;
-    fedora)  sudo ddn install -y java-25-openjdk 2>/dev/null || sudo dnf install -y java-25-openjdk ;;
-    ubuntu)  warn "Java 25 not in default repos — manual install required" ;;
-    arch)    sudo pacman -Sy --noconfirm jdk-openjdk 2>/dev/null || warn "Please install Java 25 manually" ;;
-    linux)   warn "Please install Java 25 manually" ;;
+    macos)
+      error "Install Docker Desktop: https://docker.com/products/docker-desktop" ;;
+    fedora)
+      sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin ;;
+    ubuntu)
+      sudo apt-get update && sudo apt-get install -y docker.io docker-compose ;;
+    arch)
+      sudo pacman -Sy --noconfirm docker docker-compose ;;
+    linux)
+      error "Please install Docker manually: https://docs.docker.com/engine/install" ;;
+  esac
+  case "$PLATFORM" in
+    fedora|ubuntu|arch) sudo systemctl enable --now docker ;;
   esac
 fi
-if command -v java &>/dev/null; then success "Java $(java -version 2>&1 | head -1) ready"; else warn "Java not found"; fi
-
-# ── Set JAVA_BIN for MC 1.21+ ─────────────────────────────────────────────────
-if [[ -z "$JAVA_BIN" ]]; then
-  for v in 25 26 24 21; do
-    for p in "/usr/lib/jvm/jre-$v-openjdk/bin/java" "/usr/lib/jvm/java-$v-openjdk/bin/java" "/Library/Java/JavaVirtualMachines/openjdk-$v.jdk/Contents/Home/bin/java"; do
-      if [[ -x "$p" ]]; then
-        export JAVA_BIN="$p"
-        break 2
-      fi
-    done
-  done
-fi
-if [[ -n "$JAVA_BIN" ]]; then
-  success "Using Java: $JAVA_BIN"
-  echo "JAVA_BIN=$JAVA_BIN" >> ~/.voxel-control.env
-fi
+if command -v docker &>/dev/null; then success "Docker $(docker --version | cut -d' ' -f3 | cut -d',' -f1) ready"; fi
 
 # ── Clone or update repo ──────────────────────────────────────────────────────
 if [[ -d "$INSTALL_DIR/.git" ]]; then

@@ -1,0 +1,16 @@
+FROM eclipse-temurin:25-jre-alpine
+
+RUN apk add --no-cache curl bash tzdata~zstd
+
+WORKDIR /data
+
+ENV TZ=UTC
+
+EXPOSE 25565 25575
+
+COPY server.jar /data/server.jar
+RUN echo "eula=true" > eula.txt
+
+ENV XMS=1G XMX=2G JVM_ARGS="-Dterminal.ansi=true -XX:+UseZGC"
+
+CMD ["sh", "-c", "java $JVM_ARGS -Xms$XMS -Xmx$XMX -jar server.jar nogui"]
