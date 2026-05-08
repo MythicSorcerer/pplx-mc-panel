@@ -57,30 +57,9 @@ async function dockerPullImage(): Promise<void> {
 
 async function dockerBuildImage(): Promise<boolean> {
   const repoRoot = process.env.INSTALL_DIR || process.cwd().endsWith("backend") ? process.cwd().replace("/backend", "") : process.cwd();
-  emit(`[panel] Building from ${repoRoot}...`);
-  const dockerfilePath = path.join(repoRoot, "Dockerfile.mcserver");
-  const mcDir = process.env.MC_DIR || path.join(process.env.HOME || "", "minecraft");
-  const sourceJar = path.join(mcDir, "server.jar");
-  
-  if (!fs.existsSync(dockerfilePath)) {
-    emit(`[panel] Dockerfile.mcserver not found at ${dockerfilePath}`);
-    return false;
-  }
-  
-  if (!fs.existsSync(sourceJar)) {
-    emit(`[panel] server.jar not found at ${sourceJar}`);
-    return false;
-  }
-
-  const targetJar = path.join(repoRoot, "server.jar");
-  if (!fs.existsSync(targetJar)) {
-    emit(`[panel] Copying server.jar to repo root...`);
-    await copyFile(sourceJar, targetJar);
-  }
-
-  emit(`[panel] Building ${MC_IMAGE}...`);
+emit(`[panel] Building from ${repoRoot}...`);
   try {
-    await execCmd(`docker build -f Dockerfile.mcserver -t ${MC_IMAGE} ${repoRoot}`);
+    await execCmd(`docker build -f ${repoRoot}/Dockerfile.mcserver -t ${MC_IMAGE} ${repoRoot}`);
     emit(`[panel] Built ${MC_IMAGE}`);
     return true;
   } catch (e: any) {
