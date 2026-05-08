@@ -53,7 +53,7 @@ async function dockerPullImage(): Promise<void> {
 }
 
 async function dockerBuildImage(): Promise<boolean> {
-  const repoRoot = path.join(__dirname, "..");
+  const repoRoot = path.join(__dirname, "../..");
   const dockerfilePath = path.join(repoRoot, "Dockerfile.mcserver");
   const jarPath = path.join(repoRoot, "server.jar");
 
