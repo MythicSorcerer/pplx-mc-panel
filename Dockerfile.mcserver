@@ -9,7 +9,8 @@ ENV TZ=UTC
 EXPOSE 25565 25575
 
 COPY server.jar /data/server.jar
-COPY eula.txt /data/eula.txt 2>/dev/null || echo "eula=true" > eula.txt
+
+RUN echo "eula=true" > /data/eula.txt
 
 ENV XMS=1G XMX=2G JVM_ARGS="-Dterminal.ansi=true -XX:+UseZGC"
 

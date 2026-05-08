@@ -6,6 +6,9 @@ import { promisify } from "util";
 
 const execAsync = promisify(exec);
 
+const copyFile = (src: string, dest: string): Promise<void> =>
+  new Promise((resolve, reject) => fs.copyFile(src, dest, err => err ? reject(err) : resolve()));
+
 const execCmd = (cmd: string): Promise<string> =>
   new Promise((resolve, reject) => {
     exec(cmd, (err, stdout, stderr) => err ? reject(err) : resolve(stdout + stderr));
@@ -56,18 +59,22 @@ async function dockerBuildImage(): Promise<boolean> {
   const repoRoot = path.join(__dirname, "../..");
   const dockerfilePath = path.join(repoRoot, "Dockerfile.mcserver");
   const mcDir = process.env.MC_DIR ?? path.join(process.env.HOME || "", "minecraft");
-  const jarPath = process.env.MC_JAR 
-    ? path.join(path.dirname(process.env.MC_JAR), "server.jar")
-    : path.join(mcDir, "server.jar");
+  const sourceJar = path.join(mcDir, "server.jar");
 
   if (!fs.existsSync(dockerfilePath)) {
     emit(`[panel] Dockerfile.mcserver not found`);
     return false;
   }
 
-  if (!fs.existsSync(jarPath)) {
-    emit(`[panel] server.jar not found at ${jarPath}`);
+  if (!fs.existsSync(sourceJar)) {
+    emit(`[panel] server.jar not found at ${sourceJar}`);
     return false;
+  }
+
+  const targetJar = path.join(repoRoot, "server.jar");
+  if (!fs.existsSync(targetJar)) {
+    emit(`[panel] Copying server.jar to repo root...`);
+    await copyFile(sourceJar, targetJar);
   }
 
   emit(`[panel] Building ${MC_IMAGE}...`);
@@ -188,7 +195,11 @@ export const getContainerStats = async (): Promise<{cpu: number; ram: number; di
     const isGiB = used.includes("GiB");
     const usedMB = isGiB ? usedNum * 1024 : usedNum;
 
-    return { cpu, ram: Math.round((usedMB / 3072) * 100), disk: 0, uptime: startTime ? Math.floor((Date.now() - startTime) / 1000) : 0 };
+    const memLimit = process.env.MC_MEM 
+      ? parseFloat(process.env.MC_MEM) * 1024 
+      : 3072;
+
+    return { cpu, ram: Math.round((usedMB / memLimit) * 100), disk: 0, uptime: startTime ? Math.floor((Date.now() - startTime) / 1000) : 0 };
   } catch {
     return null;
   }
