@@ -7,6 +7,7 @@ import os from "os";
 import { execSync } from "child_process";
 import fs from "fs";
 import { WebSocketServer, WebSocket } from "ws";
+import "./env";
 
 import authRouter     from "./routes/auth";
 import playersRouter  from "./routes/players";
@@ -19,7 +20,8 @@ import { start, stop, restart, sendCommand, status, getBuffer, events } from "./
 const app    = express();
 const server = http.createServer(app);
 const PORT   = Number(process.env.PORT ?? 3000);
-const IS_DEV = process.env.NODE_ENV !== "production";
+const NODE_ENV = process.env.NODE_ENV ?? "production";
+const IS_DEV = NODE_ENV !== "production";
 
 app.use(cors({ origin: IS_DEV ? "http://localhost:5173" : false, credentials: true }));
 app.use(express.json());
