@@ -58,21 +58,21 @@ export function ConsoleView() {
           <button
             onClick={handleStart}
             disabled={isOnline || isTransitioning}
-            className="rounded-full px-3 py-1.5 text-xs font-bold bg-emerald text-coal hover:bg-mint disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="rounded-full px-3 py-1.5 text-xs font-bold border border-emerald/40 text-emerald hover:bg-emerald/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Start
           </button>
           <button
             onClick={handleRestart}
             disabled={!isOnline}
-            className="rounded-full px-3 py-1.5 text-xs font-bold bg-transparent border border-amber-500/40 text-amber-500 hover:bg-amber-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="rounded-full px-3 py-1.5 text-xs font-bold border border-amber-500/40 text-amber-500 hover:bg-amber-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Restart
           </button>
           <button
             onClick={handleStop}
             disabled={!isOnline}
-            className="rounded-full px-3 py-1.5 text-xs font-bold bg-redstone text-white hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="rounded-full px-3 py-1.5 text-xs font-bold border border-redstone/40 text-redstone hover:bg-redstone/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Stop
           </button>

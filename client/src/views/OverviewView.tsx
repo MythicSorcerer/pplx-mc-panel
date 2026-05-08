@@ -37,8 +37,8 @@ export default function OverviewView() {
         </div>
         <button
           onClick={togglePower}
-          className={`rounded-2xl px-6 py-2.5 text-sm font-semibold transition-colors ${
-            isOnline ? "bg-redstone/20 text-redstone hover:bg-redstone/30" : "bg-emerald/20 text-emerald hover:bg-emerald/30"
+          className={`rounded-2xl px-6 py-2.5 text-sm font-semibold border transition-colors ${
+            isOnline ? "border-redstone/40 text-redstone hover:bg-redstone/20" : "border-emerald/40 text-emerald hover:bg-emerald/20"
           }`}
         >
           {isOnline ? "Stop Server" : status === "starting" ? "Starting…" : status === "stopping" ? "Stopping…" : "Start Server"}
