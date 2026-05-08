@@ -41,6 +41,17 @@ export function FilesView() {
 
   useEffect(() => { load("/"); }, [load]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "f") {
+        e.preventDefault();
+        document.getElementById("file-editor")?.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   async function toggleDir(fullPath: string) {
     const next = new Set(expanded);
     if (next.has(fullPath)) {
@@ -307,6 +318,7 @@ export function FilesView() {
                 </button>
               </div>
               <textarea
+                id="file-editor"
                 className="flex-1 bg-transparent p-4 font-mono text-sm text-white/80 resize-none outline-none scrollbar-thin"
                 value={content}
                 onChange={e => setContent(e.target.value)}

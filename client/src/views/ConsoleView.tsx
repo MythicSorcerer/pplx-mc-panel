@@ -80,7 +80,7 @@ export function ConsoleView() {
         </div>
       </PageHeader>
       <div className="flex-1 overflow-hidden p-4 lg:p-8 grid xl:grid-cols-[1fr_280px] gap-4">
-        <section className="terminal rounded-[28px] p-5 flex flex-col min-h-[400px]">
+        <section className="terminal rounded-[28px] p-5 flex flex-col min-h-0">
           <div className="mb-4 flex-shrink-0">
             <p className="text-[10px] uppercase tracking-[0.3em] text-moss">Live output</p>
             <h2 className="text-xl font-bold text-white mt-1">Server console</h2>
