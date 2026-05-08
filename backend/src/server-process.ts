@@ -167,11 +167,7 @@ export async function sendCommand(cmd: string) {
   }
 
   emit(`> ${cmd}`);
-  try {
-    await execCmd(`docker exec ${MC_CONTAINER} rcon-cli ${cmd}`);
-  } catch (e: any) {
-    emit(`[stderr] ${e.message}`);
-  }
+  emit("[panel] Commands via console - stdin not exposed in Docker. Use RCON or console directly.");
 }
 
 export async function getContainerId(): Promise<string | null> {

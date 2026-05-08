@@ -14,7 +14,7 @@ export function Sidebar() {
   const { status, togglePower, metrics, software } = useServer();
   const { logout } = useAuth();
   return (
-    <aside className="glass rounded-[28px] p-4 lg:p-5 flex flex-col gap-4">
+    <aside className="glass rounded-[28px] p-4 lg:p-5 flex flex-col gap-4 h-full">
       <div className="flex items-center gap-4 px-3 py-3">
         <div className="h-11 w-11 rounded-2xl panel-line flex items-center justify-center text-mint">
           <svg viewBox="0 0 80 80" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="5" aria-label="Voxel Control logo">
