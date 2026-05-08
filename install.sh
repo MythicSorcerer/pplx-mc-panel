@@ -45,17 +45,32 @@ success "Node $(node --version) ready"
 
 # ── Install Java if missing ───────────────────────────────────────────────────
 if ! command -v java &>/dev/null; then
-  info "Installing Java 21..."
+  info "Installing Java 25..."
   case "$PLATFORM" in
-    macos)   brew install openjdk@21 && sudo ln -sfn $(brew --prefix)/opt/openjdk@21/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-21.jdk ;;
-    fedora)  sudo dnf install -y java-21-openjdk ;;
-    ubuntu)  sudo apt-get install -y openjdk-21-jdk ;;
-    arch)    sudo pacman -Sy --noconfirm jdk21-openjdk ;;
-    linux)   warn "Please install Java 21+ manually" ;;
+    macos)   brew install openjdk@25 && sudo ln -sfn $(brew --prefix)/opt/openjdk@25/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-25.jdk ;;
+    fedora)  sudo ddn install -y java-25-openjdk 2>/dev/null || sudo dnf install -y java-25-openjdk ;;
+    ubuntu)  warn "Java 25 not in default repos — manual install required" ;;
+    arch)    sudo pacman -Sy --noconfirm jdk-openjdk 2>/dev/null || warn "Please install Java 25 manually" ;;
+    linux)   warn "Please install Java 25 manually" ;;
   esac
 fi
-if command -v java &>/dev/null; then success "Java $(java -version 2>&1 | head -1) ready"
-else warn "Java not found — server start will fail until Java is installed"; fi
+if command -v java &>/dev/null; then success "Java $(java -version 2>&1 | head -1) ready"; else warn "Java not found"; fi
+
+# ── Set JAVA_BIN for MC 1.21+ ─────────────────────────────────────────────────
+if [[ -z "$JAVA_BIN" ]]; then
+  for v in 25 26 24 21; do
+    for p in "/usr/lib/jvm/jre-$v-openjdk/bin/java" "/usr/lib/jvm/java-$v-openjdk/bin/java" "/Library/Java/JavaVirtualMachines/openjdk-$v.jdk/Contents/Home/bin/java"; do
+      if [[ -x "$p" ]]; then
+        export JAVA_BIN="$p"
+        break 2
+      fi
+    done
+  done
+fi
+if [[ -n "$JAVA_BIN" ]]; then
+  success "Using Java: $JAVA_BIN"
+  echo "JAVA_BIN=$JAVA_BIN" >> ~/.voxel-control.env
+fi
 
 # ── Clone or update repo ──────────────────────────────────────────────────────
 if [[ -d "$INSTALL_DIR/.git" ]]; then
