@@ -1,14 +1,35 @@
 import { useEffect, useRef, useState, FormEvent } from "react";
 import { PageHeader } from "../components/PageHeader";
 import { useConsoleWS } from "../hooks/useConsoleWS";
+import { useServer } from "../context/ServerContext";
 
 const PRESETS = ["list","save-all","whitelist reload","say Welcome!","time set day","weather clear","difficulty hard"];
 
 export function ConsoleView() {
   const { lines, send } = useConsoleWS();
+  const { status, togglePower } = useServer();
   const [input, setInput]         = useState("");
   const [autoSend, setAutoSend]   = useState(false);
   const outputRef = useRef<HTMLDivElement>(null);
+
+  const isOnline = status === "online";
+  const isTransitioning = status === "starting" || status === "stopping";
+
+  async function handleStart() {
+    if (!isOnline && !isTransitioning) {
+      await fetch("/api/server/start", { method: "POST", credentials: "include" });
+    }
+  }
+  async function handleStop() {
+    if (isOnline) {
+      await fetch("/api/server/stop", { method: "POST", credentials: "include" });
+    }
+  }
+  async function handleRestart() {
+    if (isOnline) {
+      await fetch("/api/server/restart", { method: "POST", credentials: "include" });
+    }
+  }
 
   useEffect(() => {
     if (outputRef.current) outputRef.current.scrollTop = outputRef.current.scrollHeight;
@@ -33,7 +54,30 @@ export function ConsoleView() {
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       <PageHeader title="Console">
-        <span className="badge px-3 py-2 rounded-full text-xs font-mono">/api/console-ws</span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleStart}
+            disabled={isOnline || isTransitioning}
+            className="rounded-full px-3 py-1.5 text-xs font-bold bg-emerald text-coal hover:bg-mint disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Start
+          </button>
+          <button
+            onClick={handleRestart}
+            disabled={!isOnline}
+            className="rounded-full px-3 py-1.5 text-xs font-bold bg-amber-500 text-coal hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Restart
+          </button>
+          <button
+            onClick={handleStop}
+            disabled={!isOnline}
+            className="rounded-full px-3 py-1.5 text-xs font-bold bg-redstone text-white hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Stop
+          </button>
+          <span className="badge px-3 py-2 rounded-full text-xs font-mono">/api/console-ws</span>
+        </div>
       </PageHeader>
       <div className="flex-1 overflow-hidden p-4 lg:p-8 grid xl:grid-cols-[1fr_280px] gap-4">
         <section className="terminal rounded-[28px] p-5 flex flex-col min-h-[400px]">
