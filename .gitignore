@@ -17,3 +17,10 @@ server.properties.json
 .DS_Store
 .idea/
 *.swp
+.worktrees/
+port3000.sh
+port3000.txt
+pm2-fix.sh
+pm2-fix.txt
+pm2-restart.sh
+pm2-restart.txt
