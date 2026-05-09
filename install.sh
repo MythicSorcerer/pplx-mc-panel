@@ -102,6 +102,30 @@ fi
 info "Installing backend dependencies..."
 cd "$INSTALL_DIR/backend" && npm install --production=false
 
+# ── Install Docker image ───────────────────────────────────────────────────
+MC_DIR="${MC_DIR:-$HOME/minecraft}"
+if [[ -f "$MC_DIR/server.jar" ]]; then
+  info "Building MC server Docker image..."
+  cd "$INSTALL_DIR"
+  docker build -f Dockerfile.mcserver -t mcserver:latest . || warn "Docker build failed"
+  docker volume create mc-data 2>/dev/null || true
+  success "MC Docker image ready"
+else
+  warn "No server.jar found in $MC_DIR"
+  info "Download from papermc.io or purpurmc.org and put in $MC_DIR/"
+fi
+
+# ── Install PM2 ───────────────────────────────────────────────────────────────
+if ! command -v pm2 &>/dev/null; then
+  info "Installing PM2..."
+  sudo npm install -g pm2
+fi
+success "PM2 ready"
+
+# ── Build ─────────────────────────────────────────────────────────────────────
+info "Installing backend dependencies..."
+cd "$INSTALL_DIR/backend" && npm install --production=false
+
 info "Installing frontend dependencies..."
 cd "$INSTALL_DIR/client" && npm install
 
@@ -109,121 +133,27 @@ info "Building frontend..."
 npm run build
 
 info "Building backend..."
-cd "$INSTALL_DIR/backend" && npm run build 2>/dev/null || true
+cd "$INSTALL_DIR/backend" && npm run build
 
-# ── Write mcpanel CLI ─────────────────────────────────────────────────────────
-CLI_PATH="/usr/local/bin/mcpanel"
-sudo tee "$CLI_PATH" > /dev/null << CLISCRIPT
-#!/usr/bin/env bash
-SERVICE="$SERVICE_NAME"
-INSTALL="$INSTALL_DIR"
-PORT="$PORT"
-PLATFORM="$PLATFORM"
+# ── Start with PM2 ───────────────────────────────────────────────────────
+cd "$INSTALL_DIR/backend"
+export NODE_ENV=production
+export PORT=$PORT
+pm2 start dist/index.js --name mc-panel-backend || pm2 restart mc-panel-backend
+pm2 save
 
-start_service() {
-  export MC_DIR="\${MC_DIR:-\$HOME/minecraft}"
-  export PORT="\$PORT"
-  export NODE_ENV="production"
-  if [[ "\$PLATFORM" == "macos" ]]; then
-    launchctl load "\$HOME/Library/LaunchAgents/com.voxelcontrol.plist" 2>/dev/null
-    echo "Panel started → http://localhost:\$PORT"
-  else
-    sudo systemctl start "\$SERVICE"
-    echo "Panel started → http://localhost:\$PORT"
-  fi
-}
-
-stop_service() {
-  if [[ "\$PLATFORM" == "macos" ]]; then
-    launchctl unload "\$HOME/Library/LaunchAgents/com.voxelcontrol.plist" 2>/dev/null
-  else
-    sudo systemctl stop "\$SERVICE"
-  fi
-  echo "Panel stopped"
-}
-
-case "\${1:-help}" in
-  start)   start_service ;;
-  stop)    stop_service ;;
-  restart) stop_service; sleep 1; start_service ;;
-  logs)    if [[ "\$PLATFORM" == "macos" ]]; then tail -f /tmp/voxel-control.log; else sudo journalctl -u "\$SERVICE" -f; fi ;;
-  status)  curl -s "http://localhost:\$PORT/api/health" | python3 -m json.tool 2>/dev/null || echo "Panel not responding" ;;
-  update)  git -C "\$INSTALL" pull && cd "\$INSTALL/client" && npm run build && cd "\$INSTALL/backend" && npm run build; stop_service; start_service ;;
-  *)       echo "Usage: mcpanel [start|stop|restart|logs|status|update]" ;;
-esac
-CLISCRIPT
-sudo chmod +x "$CLI_PATH"
-
-# ── Install service ───────────────────────────────────────────────────────────
-if [[ "$PLATFORM" == "macos" ]]; then
-  PLIST="$HOME/Library/LaunchAgents/com.voxelcontrol.plist"
-  cat > "$PLIST" << PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"\>
-<plist version="1.0"><dict>
-  <key>Label</key><string>com.voxelcontrol</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>$(which node)</string>
-    <string>$INSTALL_DIR/backend/dist/index.js</string>
-  </array>
-  <key>EnvironmentVariables</key>
-  <dict>
-    <key>NODE_ENV</key><string>production</string>
-    <key>PORT</key><string>$PORT</string>
-  </dict>
-  <key>RunAtLoad</key><false/>
-  <key>KeepAlive</key><false/>
-  <key>StandardOutPath</key><string>/tmp/voxel-control.log</string>
-  <key>StandardErrorPath</key><string>/tmp/voxel-control.log</string>
-  <key>WorkingDirectory</key><string>$INSTALL_DIR/backend</string>
-</dict></plist>
-PLIST
-  launchctl load "$PLIST"
-  success "Service registered with launchd"
-
-else
-  # systemd (Fedora, Ubuntu, Arch, RHEL)
-  sudo tee "/etc/systemd/system/$SERVICE_NAME.service" > /dev/null << UNIT
-[Unit]
-Description=Voxel Control Minecraft Panel
-After=network.target
-
-[Service]
-Type=simple
-User=$USER
-WorkingDirectory=$INSTALL_DIR/backend
-ExecStart=$(which node) $INSTALL_DIR/backend/dist/index.js
-Restart=on-failure
-RestartSec=5
-Environment=NODE_ENV=production
-Environment=PORT=$PORT
-Environment=ADMIN_EMAIL=${ADMIN_EMAIL:-admin@voxel.local}
-Environment="ADMIN_PASSWORD=$ADMIN_PASSWORD"
-Environment="SESSION_SECRET=$SESSION_SECRET"
-
-[Install]
-WantedBy=multi-user.target
-UNIT
-  sudo systemctl daemon-reload
-  sudo systemctl enable "$SERVICE_NAME"
-  sudo systemctl start "$SERVICE_NAME"
-  success "Service registered with systemd"
-fi
-
-# ── Done ──────────────────────────────────────────────────────────────────────
+# ── Done ──────────────────────────────────────────────────────────────────
 echo ""
 success "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 success " Voxel Control installed!"
 success " Panel → http://localhost:$PORT"
-success " Login → admin@voxel.local / admin"
+success " Login → admin@voxel.local / [your password]"
+success " MC Server → localhost:25565"
 success "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 info "Commands:"
-info "  mcpanel start    — start the panel"
-info "  mcpanel stop     — stop the panel"
-info "  mcpanel logs     — tail logs"
-info "  mcpanel status   — check health"
-info "  mcpanel update   — pull + rebuild"
+info "  pm2 status           — check panel status"
+info "  pm2 logs            — view logs"
+info "  pm2 restart mc-panel-backend — restart panel"
 echo ""
-info "Put your server.jar in ~/minecraft/ then hit Start in the panel."
+info "Next: Open panel → Software → Install server → Start"
